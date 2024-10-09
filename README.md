@@ -339,3 +339,230 @@ void serialEvent() {
 La razón es porque en un protocolo binario usualmente no tiene un carácter de FIN DE MENSAJE, como si ocurre con los protocolos ASCII, donde usualmente el último carácter es el \n.
 
 ## Ejercicio 3: ¿Qué es el endian?
+
+El término endian se refiere al orden en que se almacenan y transmiten los bytes de datos en una computadora o durante una comunicación entre dispositivos. Existen dos principales tipos de endian que determinan el orden de los bytes en números que ocupan más de un byte, como los números en punto flotante o enteros grandes:
+
+### Little Endian:
+ El byte de menor peso (el que contiene los bits menos significativos) se almacena o transmite primero. Es decir, el orden es de menor a mayor peso. Este formato es común en arquitecturas de procesadores como las utilizadas por Intel.
+
+### Big Endian:
+ El byte de mayor peso (el que contiene los bits más significativos) se almacena o transmite primero. Es decir, el orden es de mayor a menor peso. Este formato es común en arquitecturas como las de algunos procesadores RISC y en redes (es el estándar para las transmisiones de red).
+
+Ejemplo:
+
+Supongamos que tenemos el número hexadecimal 0x12345678, que en binario es:
+00010010 00110100 01010110 01111000
+
+Esto lo podemos dividir en 4 bytes:
+0x12 = 00010010
+0x34 = 00110100
+0x56 = 01010110
+0x78 = 01111000
+
+1. Big Endian:
+En big endian, los bytes se almacenan en el mismo orden en que se escriben. El número completo sería:
+0x12 0x34 0x56 0x78
+Entonces, en big endian, el valor en decimal es 305419896.
+
+2. Little Endian:
+En little endian, los bytes se almacenan en el orden inverso, es decir, el byte de menor peso se almacena primero. Así que, el número en memoria se ve así:
+0x78 0x56 0x34 0x12
+En little endian, el valor en decimal es 2018915346.
+
+## Ejercicio 4: transmitir números en punto flotante
+
+¿Cómo transmitir un número en punto flotante? Veamos dos alternativas:
+Opción 1:
+```
+void setup() {
+    Serial.begin(115200);
+}
+
+void setup() {
+    Serial.begin(115200);  // Inicia la comunicación serie a una velocidad de 115200 baudios.
+}
+
+void loop() {
+    // 45 60 55 d5
+    // https://www.h-schmidt.net/FloatConverter/IEEE754.html
+    static float num = 3589.3645;  // Declara una variable flotante estática con el valor 3589.3645. 
+                                   // La palabra clave 'static' asegura que el valor de 'num' no se reinicie en cada iteración de loop.
+
+    if(Serial.available()){  // Comprueba si hay datos disponibles en el buffer de entrada serial.
+        if(Serial.read() == 's'){  // Lee un byte de los datos seriales y verifica si es el carácter 's'.
+            Serial.write ( (uint8_t *) &num, 4);  // Si el carácter es 's', envía los 4 bytes que representan 
+                                                  // la variable 'num' en formato binario por el puerto serie.
+        }
+    }
+}
+
+```
+
+Opción 2. Aquí primero se copia la información que se desea transmitir a un buffer o arreglo:
+```
+void setup() {
+    Serial.begin(115200);  // Inicia la comunicación serie a 115200 baudios.
+}
+
+void loop() {
+    // 45 60 55 d5
+    // https://www.h-schmidt.net/FloatConverter/IEEE754.html
+    float num = 3589.3645;  // Declara una variable de tipo float con el valor 3589.3645.
+
+    static uint8_t arr[4] = {0};  // Declara un arreglo estático de 4 bytes (uint8_t), 
+                                  // que se usará para almacenar la representación binaria del float.
+
+    if (Serial.available()) {  // Verifica si hay datos disponibles en el puerto serial.
+        if (Serial.read() == 's') {  // Lee un byte de la comunicación serie y comprueba si es el carácter 's'.
+            
+            memcpy(arr, (uint8_t *)&num, 4);  // Copia los 4 bytes de la variable 'num' (float) al arreglo 'arr'. 
+                                              // Usa la función 'memcpy' para mover los bytes desde la dirección de 'num' 
+                                              // a 'arr'.
+
+            Serial.write(arr, 4);  // Envía los 4 bytes del arreglo 'arr' por el puerto serial.
+        }
+    }
+}
+
+```
+
+### Preguntas:
+
+#### ¿En qué *endian* estamos transmitiendo el número?
+Estamos transmitiendo por el little endian en donde se estan enviando los byytes del menis significativo al más significativo, lo que devuelve el número 3589.3645.
+
+#### Y si queremos transmitir en el *endian* contrario, ¿Cómo se modifica el código?
+Modificación del código para transmitir en big endian:
+Modifica el código de tal manera para que transmita los bytes en big endian:
+Primer codigo:
+```
+void setup() {
+    Serial.begin(115200);  // Inicia la comunicación serie a una velocidad de 115200 baudios.
+}
+
+void loop() {
+    static float num = 3589.3645;  // Declara una variable flotante estática con el valor 3589.3645.
+
+    if (Serial.available()) {  // Comprueba si hay datos disponibles en el buffer de entrada serial.
+        if (Serial.read() == 's') {  // Lee un byte de los datos seriales y verifica si es el carácter 's'.
+            uint8_t arr[4];  // Crea un arreglo para almacenar los bytes.
+            memcpy(arr, (uint8_t*)&num, 4);  // Copia los 4 bytes de 'num' al arreglo 'arr'.
+
+            // Invertir los bytes para enviar en big endian
+            uint8_t temp;
+            temp = arr[0];
+            arr[0] = arr[3];
+            arr[3] = temp;
+            temp = arr[1];
+            arr[1] = arr[2];
+            arr[2] = temp;
+
+            // Envía los 4 bytes en big endian
+            Serial.write(arr, 4);  // Envía el arreglo de 4 bytes por el puerto serie.
+        }
+    }
+}
+```
+
+Segundo codigo:
+```
+// Función que se ejecuta una vez al iniciar el programa
+void setup() {
+    Serial.begin(115200);  // Inicia la comunicación serie a una velocidad de 115200 baudios.
+}
+
+// Función que se ejecuta repetidamente después de setup()
+void loop() {
+    // 45 60 55 d5 // Representación en hexadecimal del número 3589.3645 en formato IEEE 754
+    static float num = 3589.3645;  // Declara una variable flotante estática llamada 'num' con el valor 3589.3645.
+                                    // La palabra clave 'static' asegura que 'num' mantenga su valor entre las iteraciones de 'loop'.
+    static uint8_t arr[4] = {0};  // Declara un arreglo estático de 4 bytes (uint8_t) llamado 'arr' y lo inicializa a cero.
+                                    // Este arreglo se utilizará para almacenar la representación binaria de 'num'.
+
+    // Verifica si hay datos disponibles en el buffer de entrada serial
+    if (Serial.available()) {
+        // Lee un byte de los datos seriales y verifica si es el carácter 's'
+        if (Serial.read() == 's') {
+            // Copia los 4 bytes que representan la variable 'num' al arreglo 'arr'
+            memcpy(arr, (uint8_t *)&num, 4);  // 'memcpy' copia los bytes de 'num' a 'arr', tratando 'num' como un arreglo de bytes
+
+            // Envía los bytes en orden inverso (big endian)
+            for (int8_t i = 3; i >= 0; i--) {  // Itera sobre los 4 bytes de 'arr' en orden inverso
+                Serial.write(arr[i]);  // Envía el byte actual por el puerto serie
+            }
+        }
+    }
+}
+```
+
+## Ejercicio 5: envía tres números en punto flotante
+Ahora te voy a pedir que practiques. La idea es que transmitas dos números en punto flotante en ambos endian.
+### Big endian
+```
+// Función que se ejecuta una vez al iniciar el programa
+void setup() {
+    Serial.begin(115200);  // Inicia la comunicación serie a una velocidad de 115200 baudios.
+}
+
+// Función que se ejecuta repetidamente después de setup()
+void loop() {
+    // Declaración de los números en punto flotante
+    static float num1 = 4.33;  
+    static float num2 = 5798374784734.0387473;  
+    static uint8_t arr[4];  // Arreglo para almacenar los bytes de los números
+
+    // Verifica si hay datos disponibles en el buffer de entrada serial
+    if (Serial.available()) {
+        // Lee un byte de los datos seriales y verifica si es el carácter 's'
+        if (Serial.read() == 's') {
+            // Copia los bytes de num1 a arr y envía en little endian
+            memcpy(arr, (uint8_t *)&num1, 4);  // Copia los bytes de num1
+            Serial.write(arr, 4);  // Envía los bytes en little endian
+
+            // Envía los bytes de num1 en big endian
+            for (int8_t i = 3; i >= 0; i--) {  // Itera sobre los 4 bytes de 'arr' en orden inverso
+                Serial.write(arr[i]);  // Envía el byte actual por el puerto serie
+            }
+
+            // Repite el proceso para num2
+            memcpy(arr, (uint8_t *)&num2, 4);  // Copia los bytes de num2
+            Serial.write(arr, 4);  // Envía los bytes en little endian
+
+            // Envía los bytes de num2 en big endian
+            for (int8_t i = 3; i >= 0; i--) {  // Itera sobre los 4 bytes de 'arr' en orden inverso
+                Serial.write(arr[i]);  // Envía el byte actual por el puerto serie
+            }
+        }
+    }
+}
+```
+
+### little endian
+```
+// Función que se ejecuta una vez al iniciar el programa
+void setup() {
+    Serial.begin(115200);  // Inicia la comunicación serie a 115200 baudios.
+}
+
+// Función que se ejecuta repetidamente después de setup()
+void loop() {
+    static float num1 = 4.33;  // Declara una variable flotante estática llamada 'num1'.
+    static float num2 = 5798374784734.0387473;  // Declara otra variable flotante estática llamada 'num2'.
+
+    static uint8_t arr[4];  // Declara un arreglo estático de 4 bytes (uint8_t), 
+                             // que se usará para almacenar la representación binaria del float.
+
+    if (Serial.available()) {  // Verifica si hay datos disponibles en el puerto serial.
+        if (Serial.read() == 's') {  // Lee un byte de la comunicación serie y comprueba si es el carácter 's'.
+
+            // Envío de num1 en little endian
+            memcpy(arr, (uint8_t *)&num1, 4);  // Copia los 4 bytes de 'num1' al arreglo 'arr'.
+            Serial.write(arr, 4);  // Envía los 4 bytes del arreglo 'arr' por el puerto serial.
+
+            // Envío de num2 en little endian
+            memcpy(arr, (uint8_t *)&num2, 4);  // Copia los 4 bytes de 'num2' al arreglo 'arr'.
+            Serial.write(arr, 4);  // Envía los 4 bytes del arreglo 'arr' por el puerto serial.
+        }
+    }
+}
+```
