@@ -566,3 +566,39 @@ void loop() {
     }
 }
 ```
+
+## Ejercicio 6: aplicación interactiva
+
+Primer fragmento: Configuración y apertura del puerto serial
+```
+SerialPort _serialPort = new SerialPort();
+_serialPort.PortName = "/dev/ttyUSB0"; // Puerto serial en el que se va a comunicar
+_serialPort.BaudRate = 115200; // Velocidad de transmisión de datos
+_serialPort.DtrEnable = true; // Habilita la señal DTR (Data Terminal Ready)
+_serialPort.Open(); // Abre el puerto serial para la comunicación
+```
+Este código inicializa un objeto SerialPort y lo configura para comunicarse con un dispositivo a través 
+del puerto /dev/ttyUSB0 (en Linux o Raspberry Pi). La velocidad de transmisión de datos es de 115200 baudios, 
+y se habilita la señal DTR para que el dispositivo sepa que está listo para transmitir datos. Finalmente, se abre la conexión serial.
+
+
+Segundo fragmento: Envío de datos por el puerto serial
+```
+byte[] data = { 0x01, 0x3F, 0x45 }; // Arreglo de bytes a enviar
+_serialPort.Write(data, 0, 1); // Enviar solo el primer byte (0x01)
+```
+Aquí se está creando un arreglo de bytes con valores 0x01, 0x3F y 0x45. Luego, se envía solo el primer byte (0x01) al dispositivo a través del puerto serial. 
+Es importante notar que el tercer parámetro del método Write indica la cantidad de bytes a enviar (en este caso, uno solo).
+
+Tercer fragmento: Lectura de datos del puerto serial
+```
+byte[] buffer = new byte[4]; // Buffer para almacenar los bytes recibidos
+if (_serialPort.BytesToRead >= 4) { // Verifica si hay al menos 4 bytes disponibles
+    _serialPort.Read(buffer, 0, 4); // Lee 4 bytes y los almacena en el buffer
+    for (int i = 0; i < 4; i++) {
+        Console.Write(buffer[i].ToString("X2") + " "); // Muestra los bytes en formato hexadecimal
+    }
+}
+```
+Este código verifica si hay al menos 4 bytes disponibles para leer del puerto serial. Si es así, los lee en el arreglo buffer. 
+Luego, los bytes recibidos se muestran en la consola en formato hexadecimal.
