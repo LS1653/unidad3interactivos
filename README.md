@@ -602,3 +602,130 @@ if (_serialPort.BytesToRead >= 4) { // Verifica si hay al menos 4 bytes disponib
 ```
 Este código verifica si hay al menos 4 bytes disponibles para leer del puerto serial. Si es así, los lee en el arreglo buffer. 
 Luego, los bytes recibidos se muestran en la consola en formato hexadecimal.
+
+
+----------------------------------------------------------------------------
+### codigo en unity c#
+using System.IO.Ports;
+using UnityEngine;
+using UnityEngine.UI;  // Necesario para manejar la UI
+
+public class LedController : MonoBehaviour
+{
+    SerialPort _serialPort;
+
+    // Referencias a los botones y al texto de estado
+    public Button buttonON;
+    public Button buttonOFF;
+    public Button buttonRead;
+    public Text ledStatusText;
+
+    void Start()
+    {
+        // Inicializa la comunicación serial
+        _serialPort = new SerialPort("/dev/ttyUSB0", 115200);
+        _serialPort.PortName = "COM4"; // Ajusta el nombre del puerto según tu sistema
+        _serialPort.DtrEnable = true; // Asegura que el puerto esté listo
+        _serialPort.Open(); // Abre el puerto serial
+
+        // Opcional: Verificar si el puerto se ha abierto correctamente
+        if (_serialPort.IsOpen)
+        {
+            Debug.Log("Puerto serial abierto con éxito.");
+        }
+        else
+        {
+            Debug.LogError("Error al abrir el puerto serial.");
+        }
+
+        // Asignar los métodos a los botones
+        buttonON.onClick.AddListener(() => SendCommand("ON"));
+        buttonOFF.onClick.AddListener(() => SendCommand("OFF"));
+        buttonRead.onClick.AddListener(() =>
+        {
+            SendCommand("r");
+            ReadResponse();
+        });
+    }
+
+    void Update()
+    {
+        // Verifica la tecla presionada para controlar el LED
+        if (Input.GetKeyDown(KeyCode.O)) // Encender LED con tecla 'O'
+        {
+            SendCommand("ON");
+        }
+        else if (Input.GetKeyDown(KeyCode.F)) // Apagar LED con tecla 'F'
+        {
+            SendCommand("OFF");
+        }
+        else if (Input.GetKeyDown(KeyCode.R)) // Leer el estado del LED y contador con tecla 'R'
+        {
+            SendCommand("r");
+            ReadResponse();
+        }
+    }
+
+    // Función para enviar comandos al microcontrolador
+    void SendCommand(string command)
+    {
+        byte[] data = System.Text.Encoding.ASCII.GetBytes(command + '\n');
+        _serialPort.Write(data, 0, data.Length); // Envía el comando
+        Debug.Log("Comando enviado: " + command);
+    }
+
+    // Función para leer la respuesta del microcontrolador
+    void ReadResponse()
+    {
+        // Verifica si hay datos disponibles en el puerto serial
+        if (_serialPort.BytesToRead > 0)
+        {
+            // Lee el mensaje completo hasta encontrar el carácter delimitador '\n'
+            string response = _serialPort.ReadLine();  // Lee hasta '\n'
+
+            // Procesa la respuesta recibida
+            ledStatusText.text = "Respuesta: " + response;
+            Debug.Log("Respuesta recibida: " + response);
+        }
+    }
+
+    void OnApplicationQuit()
+    {
+        if (_serialPort.IsOpen)
+        {
+            _serialPort.Close(); // Cierra el puerto al salir de la aplicación
+        }
+    }
+}
+
+### codigo en la placa c++
+void setup() {
+    pinMode(LED_BUILTIN, OUTPUT); // Configura el pin del LED interno como salida
+    Serial.begin(115200);         // Configura la velocidad de comunicación serial a 115200 baudios
+}
+
+void loop() {
+    static bool ledState = false; // Estado inicial del LED (apagado)
+
+    // Verifica si hay datos disponibles en el puerto serial
+    if (Serial.available()) {
+        String received = Serial.readStringUntil('\n');  // Lee el mensaje completo hasta '\n'
+
+        // Si el dato recibido es 'r', envía el mensaje en el formato correcto
+        if (received == "r") {  // Comando 'read' recibido
+            int contador = millis() / 1000;  // Simulación de un contador
+            String estadoLED = digitalRead(LED_BUILTIN) == HIGH ? "ON" : "OFF";  // Lee el estado del LED interno
+            Serial.print(contador);
+            Serial.print(",");
+            Serial.println(estadoLED);  // Envía el estado en formato contador,estadoLED con '\n' al final
+        }
+        else if (received == "ON") {
+            digitalWrite(LED_BUILTIN, HIGH);  // Enciende el LED
+            Serial.println("LED encendido");  // Mensaje de confirmación con '\n'
+        }
+        else if (received == "OFF") {
+            digitalWrite(LED_BUILTIN, LOW);  // Apaga el LED
+            Serial.println("LED apagado");  // Mensaje de confirmación con '\n'
+        }
+    }
+}
